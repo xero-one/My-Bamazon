@@ -1,19 +1,20 @@
-var mySQL = require("mySQL");
+var mySQL = require("mysql");
 var inquirer = require("inquirer");
 
 var connection = mySQL.createConnection({
     host: "localhost",
-    port: 3000,
     user: "root",
-    
-    password:"",
+    port: 3306,
+    password:'',
     database: "bamazon_db"
 });
 
 connection.connect(function(err) {
     if(err) throw err;
-    console.log("Server has successfully connected: " + "\n" + connection.threadID + "\n");
+    console.log("Server has successfully connected");
 });
+
+module.exports = connection;
 
 start();
 
@@ -125,7 +126,7 @@ function reprompt(){
 	});
 }
 
-var PORT = process.env.PORT || 3000;
+//var PORT = process.env.PORT || 3000;
 
 
 
