@@ -110,8 +110,6 @@ function orderDone(itemObject, itemSelected, itemQuantity) {
     })
   }
 
-// ANOTHER PURCHASE //
-
 function reprompt(){
 	inquirer.prompt([{
 		type: "confirm",
@@ -127,6 +125,7 @@ function reprompt(){
 	});
 }
 
+var PORT = process.env.PORT || 3000;
 
 
 
