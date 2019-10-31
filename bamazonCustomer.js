@@ -1,12 +1,20 @@
+/*MySQL password section and .env settings*/
+require("dotenv/config")
+var keys = require("./keys.js");
+
+var mySQLPass = (keys.mySQLPass);
+
+
+
 var mySQL = require("mysql");
 var inquirer = require("inquirer");
 
 var connection = mySQL.createConnection({
-    host: "localhost",
+    host: "127.0.0.1",
     user: "root",
     port: 3306,
-    password:'',
-    database: "bamazon_db"
+    password: "",
+    database: "bamazon"
 });
 
 connection.connect(function(err) {
@@ -19,20 +27,30 @@ module.exports = connection;
 start();
 
 function start() {
-    connection.query("SELECT * FROM products", function(err, res) {
+    connection.query("SELECT * FROM products", function(err) {
         if(err) console.log(err);
+        console.log('Connected as id' + connection.threadId);
         console.log('Hi user, welcome to our Bamazon node app')
-	    console.log('========================================\n')
-        res.for(row => {`
-        Id: ${row.item_id} 
-        Name: ${row.product_name} 
-        Price: ${row.price}\n
-        ` 
-
+        console.log('========================================\n')
+        console.log('Select your product from our inventory displayed below!')
+        /*Print Table*/
+        showTable();
         /*Prompt questions*/
         promptQuestions();
-        }); 
+
     })
+}
+
+/*Must install npm package to run table link=> https://www.npmjs.com/package/cli-table  or do node => "npm install cli-table"*/
+function showTable(res) {
+	var table = new Table({
+		head: ["Item ID", "Product Name", "Department", "Cost", "Stock"]
+		, colWidths: [12, 50, 45, 10, 10]
+	});
+	for (var i = 0; i < res.length; i++) {
+		table.push([res[i].item_id, res[i].product_name, res[i].department_name, res[i].price, res[i].stock_quantity]);
+	}
+	console.log(table.toString());
 }
 
 /*Question promt and array function section*/
