@@ -1,19 +1,17 @@
 /*MySQL password section and .env settings*/
 require("dotenv/config")
-var keys = require("./keys.js");
+const keys = require("./keys.js");
 
-var mySQLPass = (keys.mySQLPass);
+const mySQLPass = (keys.mySQLPass);
 
+const mySQL = require("mysql");
+const inquirer = require("inquirer");
 
-
-var mySQL = require("mysql");
-var inquirer = require("inquirer");
-
-var connection = mySQL.createConnection({
-    host: "127.0.0.1",
+const connection = mySQL.createConnection({
+    host: "localhost",
     user: "root",
     port: 3306,
-    password: "",
+    password: "Wolviver24",
     database: "bamazon"
 });
 
@@ -22,129 +20,102 @@ connection.connect(function(err) {
     console.log("Server has successfully connected");
 });
 
-module.exports = connection;
-
+/*Start function called to start Bamazon process*/
 start();
-
+/*"start" function defined*/
 function start() {
-    connection.query("SELECT * FROM products", function(err) {
+    connection.connect(function(err) {
         if(err) console.log(err);
         console.log('Connected as id' + connection.threadId);
         console.log('Hi user, welcome to our Bamazon node app')
-        console.log('========================================\n')
+        console.log('======================================================================================================================================\n')
         console.log('Select your product from our inventory displayed below!')
-        /*Print Table*/
         showTable();
-        /*Prompt questions*/
-        promptQuestions();
 
     })
 }
 
-/*Must install npm package to run table link=> https://www.npmjs.com/package/cli-table  or do node => "npm install cli-table"*/
-function showTable(res) {
-	var table = new Table({
-		head: ["Item ID", "Product Name", "Department", "Cost", "Stock"]
-		, colWidths: [12, 50, 45, 10, 10]
-	});
-	for (var i = 0; i < res.length; i++) {
-		table.push([res[i].item_id, res[i].product_name, res[i].department_name, res[i].price, res[i].stock_quantity]);
-	}
-	console.log(table.toString());
+/*Init table function with console.table and "promptQuestions" function*/
+function showTable() {
+    var table = "SELECT * FROM products"; 
+    connection.query(table, function(err, res) {
+        if(err) console.log(err);
+        console.table(res);
+         /*Prompt questions*/
+         promptQuestions();
+    })
 }
+
 
 /*Question promt and array function section*/
 function promptQuestions() {
     inquirer.prompt([
         {
-            type: "input",
-            name: "id",
-            message: "What is the Item ID of the product you wish to purchase?",
-            /*validate response*/
-            validate: function(value){
-                if(isNaN(value) == false && parseInt(value) <= res.length && parseInt(value) > 0){
-                    return true;
-                } else{
-                    return false;
-                }
-              }
-            },
-          {
-            type: "input",
-            name: "qty",
-            message: "How many you need to purchase?",
-            /*validate response*/
-            validate: function(value){
-                if(isNaN(value)){
-                    return false;
-                } else{
-                    return true;	
-                }
-              }
-            }    
-    ]).then(function(ans) {
-        var itemSelected = ans.id;
-        var itemQuantity = ans.qty;
-        minusItem(itemSelected, itemQuantity);
-    });
-}
+          name: "itemID",
+          type: "input",
+          message: "Please enter product ID for product you want.",
+          validate: function(value) {
+            if (isNaN(value) === false) {
+              return true;
+            }
+            return false;
+          }
+        }, 
+        {
+          name: "itemQuantity",
+          type: "input",
+          message: "How many units do you want?",
+          validate: function(value) {
+            if (isNaN(value) === false) {
+              return true;
+            }
+            return false
+          }
+        }]).then(function(ans) {
+            /*Table variable*/
+            var table = "SELECT stock_quantity, price, product_sales FROM products WHERE ?";
+            connection.query(table, {item_id: ans.itemID}, function(err, res) {
+              if (err) console.log(err);
+              /*Possible response selections are assigned an index[]*/
+              var item_stock = res[0].stock_quantity;
+              var item_price = res[0].price;
+              var item_sales = res[0].product_sales;
 
-/*Define function minus*/
-function minusItem(itemSelected, itemQuantity) {
-    connection.query("SELECT * FROM products", function(error, res) {
-        if(err) throw error;
-        var item;
-        for(var i=0;i<res.length;i++) {
-            if(res[i].item_id == itemSelected) {
-                item = res[i]
-            } 
-        }
-        console.log(item, "item is in stock!");
-        console.log("========================================\n");
-        if(item.stock_quantity >= itemQuantity) {
-            orderDone(item, itemSelected, itemQuantity);
+              /*Use conditional to make sure that the quantity is enough to run "purchase" event, if not enough run "promptQuestions" again*/
+              if (item_stock >= ans.itemQuantity) {
+                purchase(item_stock, item_price, item_sales, ans.itemID, ans.itemQuantity);
+                } else {
+                  console.log("There isn't enough stock left!");
             
-            /*Sever connection*/
-            connection.end(console.log("Sealing connection for security"));
-        } else {
-            console.log("Insufficient stock for this item, your order can't be completed");
-            connection.end(console.log("Sealing connection for security"));
-            
-            /*Ask if user wants to buy another product or search for another product*/
-            reprompt();
-    }
+                  promptQuestions();
+            }
+          });
+        });
+      }
+    
+    /*Set purchase action as constant function which dynamically changes the item data*/
+    const purchase = function(availableStock, price, item_sales, selectedItemID, selectedItemStock) {
+        var updatedStockQuantity = availableStock - selectedItemStock;
 
-    })
-}
+        var priceTotal = price * selectedItemStock;
 
-/*Define function "orderDone"*/
-function orderDone(itemObject, itemSelected, itemQuantity) {
-    var updateQuantity = itemObject.stock_quantity - itemQuantity;
-    var itemSales = itemObject.price * itemQuantity;
-    var queryOne = "UPDATE products SET stock_quantity = ? where ?";
-    var queryTwo = "UPDATE products SET product_sales = ? where ?";
-    connection.query(queryOne,[updateQuantity, {item_id: itemSelected}], function (error, res) {
-    })
-    connection.query(queryTwo, [itemSales, {item_id: itemSelected}], function (error, res) {
-    })
-  }
+        var updatedItemSales = parseInt(item_sales);
 
-function reprompt(){
-	inquirer.prompt([{
-		type: "confirm",
-		name: "reply",
-		message: "Would you like to make another purchase?"
-	}]).then(function(ans){
-		if(ans.reply){
-			start();
-		} else{
-            console.log("Were sorry to see you go... thank you for shopping at Bamazon!");
-            connection.end(console.log("Sealing connection for security"));
-		}
-	});
-}
+        var table = "UPDATE products SET ? WHERE ?";
+        connection.query(table, [{
+          stock_quantity: updatedStockQuantity,
+          product_sales: updatedItemSales
+        }, 
+        {item_id: selectedItemID}
+        ],  function(err, res) {
 
-//var PORT = process.env.PORT || 3000;
-
+            if (err) console.log(err);
+          
+            console.log("Congrats your purchase is successful!");
+        
+            console.log("Your payment has been made in the amount of: " + "$" + priceTotal);
+            promptQuestions();
+          });
+    };
 
 
